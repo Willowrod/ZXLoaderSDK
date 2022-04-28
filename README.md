@@ -226,11 +226,11 @@ The ZXLoaderSDK was created for use in 'Fake-A-Chip', a multi CPU 8 bit computer
 
 Most, if not all, useful information gathered for this project came from various websites, mostly no longer maintained, without which I could not have got as far as I have. These sites are listed below:
 
-TZX file format:
-http://k1.spdns.de/Develop/Projects/zasm/Info/TZX%20format.html#:~:text=TZX%20is%20a%20file%20format,turbo%20or%20custom%20loading%20routines.&text=This%20file%20format%20is%20explicitly,ZX%20Spectrum%20compatible%20computers%20only.
-TAP file format (used as part of the TZX format)
-https://sinclair.wiki.zxnet.co.uk/wiki/TAP_format
-SNA file format
-https://sinclair.wiki.zxnet.co.uk/wiki/SNA_format
-Z80 file format
-https://worldofspectrum.org/faq/reference/z80format.htm
+TZX file format:  
+http://k1.spdns.de/Develop/Projects/zasm/Info/TZX%20format.html#:~:text=TZX%20is%20a%20file%20format,turbo%20or%20custom%20loading%20routines.&text=This%20file%20format%20is%20explicitly,ZX%20Spectrum%20compatible%20computers%20only.  
+TAP file format (used as part of the TZX format)  
+https://sinclair.wiki.zxnet.co.uk/wiki/TAP_format  
+SNA file format  
+https://sinclair.wiki.zxnet.co.uk/wiki/SNA_format  
+Z80 file format  
+https://worldofspectrum.org/faq/reference/z80format.htm  
