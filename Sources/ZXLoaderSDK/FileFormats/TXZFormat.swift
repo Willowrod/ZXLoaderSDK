@@ -22,7 +22,60 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
     var offPulseLength: Int = 0
     var isOnPulse = true
     var controlDelegate: TapeControlDelegate? = nil
-    
+
+    public init(filename: String, path: String?) {
+        super.init()
+        var tzxBytes: Data? = nil
+        if let filePath = path, filePath.count > 0 {
+            var file = "\(filePath)/\(filename)"
+            if !file.hasSuffix(".tzx") {
+                file = "\(file).tzx"
+            }
+            if let contents = NSData(contentsOfFile: file) {
+                tzxBytes = contents as Data
+            }
+        } else if let filePath = Bundle.main.path(forResource: filename.replacingOccurrences(of: ".tzx", with: ""), ofType: "tzx"){
+            let contents = NSData(contentsOfFile: filePath)
+            tzxBytes = contents! as Data
+        } else {
+            print("file not found")
+        }
+        if let tzxStream = tzxBytes?.hexString?.splitToBytes(separator: " "){
+            tzxStream.forEach{byte in
+                tzxData.append(UInt8(byte, radix: 16) ?? 0x00)
+            }
+        process()
+        }
+    }
+
+    public init(path: String) {
+        super.init()
+        var tzxBytes: Data? = nil
+            var file = path
+            if !file.hasSuffix(".tzx") {
+                file = "\(file).tzx"
+            }
+            if let contents = NSData(contentsOfFile: file) {
+                tzxBytes = contents as Data
+            }
+
+        if let tzxStream = tzxBytes?.hexString?.splitToBytes(separator: " "){
+            tzxStream.forEach{byte in
+                tzxData.append(UInt8(byte, radix: 16) ?? 0x00)
+            }
+        process()
+        }
+    }
+
+    public init(data: Data){
+        super.init()
+        if let tzxBytes = data.hexString?.splitToBytes(separator: " "){
+            tzxBytes.forEach{byte in
+                tzxData.append(UInt8(byte, radix: 16) ?? 0x00)
+            }
+        process()
+        }
+    }
     
     public init(data: [UInt8]){
         super.init()
@@ -267,7 +320,6 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         currentBlock = 0
         currentByte = 0
         currentBit = 7
-        
     }
 }
 enum PlayState {
