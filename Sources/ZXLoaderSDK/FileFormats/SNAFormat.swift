@@ -5,7 +5,7 @@
 //  Created by Mike Hall on 12/01/2021.
 //
 
-import UIKit
+import Foundation
 
 public class SNAFormat: BaseFileFormat {
     var snaData: [UInt8] = []
