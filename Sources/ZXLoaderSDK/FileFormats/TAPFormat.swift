@@ -268,7 +268,7 @@ func getcurrentBlock() -> BaseTAPBlock? {
     return nil
 }
 
-public func fetchData(tState: Int) -> (signal: Bool, reset: Bool)? {
+    public func fetchData(tState: Int) -> (signal: Bool, reset: Bool, pause: Bool)? {
   //  return (true, true)
     if workingBlock == nil {
         workingBlock = getcurrentBlock()
@@ -285,15 +285,15 @@ public func fetchData(tState: Int) -> (signal: Bool, reset: Bool)? {
     switch isOnPulse {
     case true:
         if tState < onPulseLength {
-            return(true, false)
+            return(true, false, false)
         } else {
             isOnPulse = false
-            return(true, true)
+            return(true, true, false)
         }
 
     case false:
         if tState < onPulseLength {
-            return(false, false)
+            return(false, false, false)
         } else {
             isOnPulse = true
             if let thisBlock = workingBlock, let thisBlockData = thisBlock.read() {
@@ -304,7 +304,7 @@ public func fetchData(tState: Int) -> (signal: Bool, reset: Bool)? {
                 workingBlock = nil//getcurrentBlock()
                 updateBlockName()
             }
-            return(false, true)
+            return(false, true, false)
         }
     }
 //        if let thisBlock = workingBlock, let thisBlockData = thisBlock.read(tStates: tState) {
@@ -406,6 +406,8 @@ func read() -> (onPulse: Int, offPulse: Int)?{ //reset: Bool)? {
         }
     case .pause:
         playState = .complete
+        return (0, 3494 * Int(pauseLength))//return (0, 69888 * 50)
+    case .pauseBlock:
         return (0, 3494 * Int(pauseLength))//return (0, 69888 * 50)
     case .complete:
     return nil

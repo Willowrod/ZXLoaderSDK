@@ -20,6 +20,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
     var workingBlock: BaseTZXBlock? = nil
     var onPulseLength: Int = 0
     var offPulseLength: Int = 0
+    var pauseLength: Int = 0
     var isOnPulse = true
     var controlDelegate: TapeControlDelegate? = nil
 
@@ -172,6 +173,10 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
                     blocks.append(TZXStandardSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock))
                 case 0x11:
                     blocks.append(TZXTurboSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                case 0x13:
+                    blocks.append(TZXPulseSequenceBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                case 0x14:
+                    blocks.append(TZXPureDataBlock.init(data: tzxData[fromByte...], order: currentBlock))
                 case 0x20:
                     blocks.append(TZXPauseBlock.init(data: tzxData[fromByte...], order: currentBlock))
                 case 0x21:
@@ -269,35 +274,46 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         return nil
     }
     
-    public func fetchData(tState: Int) -> (signal: Bool, reset: Bool)? {
-      //  return (true, true)
+    public func fetchData(tState: Int) -> (signal: Bool, reset: Bool, pause: Bool)? {
         if workingBlock == nil {
             workingBlock = getcurrentBlock()
             if let thisBlock = workingBlock {
             if let thisBlockData = thisBlock.read() {
                 onPulseLength = thisBlockData.onPulse
                 offPulseLength = thisBlockData.offPulse
+                pauseLength = thisBlockData.pause
             }
             } else {
                 print ("End of TZX file")
                 return nil
             }
         }
+        if pauseLength > -1 {
+            if tState < onPulseLength {
+                return(false, false, true)
+            } else {
+                isOnPulse = true
+                return(false, true, false)
+            }
+        }
         switch isOnPulse {
         case true:
+            
             if tState < onPulseLength {
-                return(true, false)
+                return(true, false, false)
             } else {
                 isOnPulse = false
-                return(true, true)
+                return(true, true, false)
             }
             
         case false:
+         //   print("pulse: Off")
+         //   print("Tstste: \(tState) - OffLength: \(offPulseLength)")
             if tState < onPulseLength {
-                return(false, false)
+                return(false, false, false)
             } else {
                 isOnPulse = true
-                if let thisBlock = workingBlock, let thisBlockData = thisBlock.read() {
+                if let thisBlock = workingBlock, thisBlock.blockType != 0x20, let thisBlockData = thisBlock.read() {
                     onPulseLength = thisBlockData.onPulse
                     offPulseLength = thisBlockData.offPulse
                 } else {
@@ -305,7 +321,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
                     workingBlock = nil//getcurrentBlock()
                     updateBlockName()
                 }
-                return(false, true)
+                return(false, true, false)
             }
         }
 //        if let thisBlock = workingBlock, let thisBlockData = thisBlock.read(tStates: tState) {
@@ -323,7 +339,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
     }
 }
 enum PlayState {
-    case pilot, sync, play, pause, complete
+    case pilot, sync, play, pause, complete, pauseBlock
 }
 
 class BaseTZXBlock {
@@ -339,6 +355,7 @@ class BaseTZXBlock {
     var currentByte: Int = 0
     var currentBit = 7
     var isOffPulse = false
+    var isPause = false
    // var pulseLength = 855
    // var currentPulseLength = 2168
     var playState: PlayState = .pilot
@@ -372,7 +389,7 @@ class BaseTZXBlock {
     
     func process(){}
     
-    func read() -> (onPulse: Int, offPulse: Int)?{ //reset: Bool)? {
+    func read() -> (onPulse: Int, offPulse: Int, pause: Int)?{ //reset: Bool)? {
   //      var reset = false
         switch playState {
         
@@ -387,11 +404,14 @@ class BaseTZXBlock {
                 }
             }
             pilotCount += 2
-            return (Int(pilotPulse), Int(pilotPulse))
+            return (Int(pilotPulse), Int(pilotPulse), -1)
         case .sync:
+            if blockData.isEmpty {
+                print("Ouch!")
+            }
             workingByte = blockData[0]
             playState = .play
-            return (Int(syncPulse1), Int(syncPulse2))
+            return (Int(syncPulse1), Int(syncPulse2), -1)
         case .play:
             currentlySet = workingByte.isSet(bit: currentBit)
             currentBit -= 1
@@ -405,13 +425,15 @@ class BaseTZXBlock {
                 }
             }
             if currentlySet {
-                return(Int(onePulse), Int(onePulse))
+                return(Int(onePulse), Int(onePulse), -1)
             } else {
-                return(Int(zeroPulse), Int(zeroPulse))
+                return(Int(zeroPulse), Int(zeroPulse), -1)
             }
         case .pause:
             playState = .complete
-            return (0, 3494 * Int(pauseLength))//return (0, 69888 * 50)
+            return (0, 3494 * Int(pauseLength), -1)//return (0, 69888 * 50)
+        case .pauseBlock:
+            return (0, 0, 3494 * Int(pauseLength))//return (0, 69888 * 50)
         case .complete:
         return nil
         }
@@ -708,6 +730,87 @@ class TZXTurboSpeedBlock: TZXTAPStyleBlock {
     }
 }
 
+class TZXPulseSequenceBlock: TZXTAPStyleBlock {
+    override func process() {
+        blockType = 0x13
+        blockCounter += 1
+        var length = fetchByte(byte: blockCounter)
+        blockLength = UInt16(length * 2)
+      //  if blockCounter + Int(blockLength) < rawData.count {
+        blockData = []//Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
+//        } else {
+//            blockData = Array(rawData[blockCounter...])
+//        }
+        let tempByteCount = blockCounter
+        
+        if fetchByte(byte: blockCounter) == 0x00{
+            isHeader = true
+            type = fetchByte(byte: blockCounter)
+            for char in blockData[1...10]{
+                fileName += String(UnicodeScalar(UInt8(char)))
+            }
+            blockCounter += 10
+            dataBlockLength = fetchWord(byte: blockCounter)
+            parameter1 = fetchWord(byte: blockCounter)
+            parameter2 = fetchWord(byte: blockCounter)
+            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
+        } else {
+            isHeader = false
+            print ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
+        }
+ //       printBlockData(data: blockData)
+        blockCounter = tempByteCount
+    }
+}
+
+class TZXPureDataBlock: TZXTAPStyleBlock {
+    override func process() {
+        print("Parsing Pure Data Block")
+        blockType = 0x14
+        blockCounter += 1
+        pilotPulse = 0
+        syncPulse1 = 0
+        syncPulse2 = 0
+        zeroPulse = fetchWord(byte: blockCounter)
+        onePulse = fetchWord(byte: blockCounter)
+        pilotToneHeader = 0
+        pilotTone = 0
+        usedBitsInLastByte = fetchByte(byte: blockCounter)
+        pauseLength = fetchWord(byte: blockCounter)
+        blockLength = fetchWord(byte: blockCounter)
+        blockCounter += 1
+        playState = .play
+        print("Data left: \(rawData.count) - Length of block: \(blockLength)")
+   
+        if blockCounter + Int(blockLength) < rawData.count {
+        blockData = Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
+        } else {
+            blockData = Array(rawData[blockCounter...])
+        }
+        let tempByteCount = blockCounter
+        
+        if fetchByte(byte: blockCounter) == 0x00{
+            isHeader = true
+            type = fetchByte(byte: blockCounter)
+            for char in blockData[1...10]{
+                fileName += String(UnicodeScalar(UInt8(char)))
+            }
+            blockCounter += 10
+            dataBlockLength = fetchWord(byte: blockCounter)
+            parameter1 = fetchWord(byte: blockCounter)
+            parameter2 = fetchWord(byte: blockCounter)
+            
+            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
+        } else {
+            isHeader = false
+            print ("Pure data block imported of length \(blockLength)")
+        }
+ //       printBlockData(data: blockData)
+        blockCounter = tempByteCount
+
+    }
+}
+
 class TZXGroupStartBlock: TZXMessageStyleBlock {
     override func process() {
         super.process()
@@ -746,7 +849,9 @@ class TZXPauseBlock: BaseTZXBlock {
     override func process() {
         blockType = 0x20
         blockCounter += 1
-        pause = fetchWord(byte: blockCounter)
+        pauseLength = fetchWord(byte: blockCounter)
+        playState = .pauseBlock
+        blockData = []
 
         
         print ("Pause block imported of length \(blockLength)")
