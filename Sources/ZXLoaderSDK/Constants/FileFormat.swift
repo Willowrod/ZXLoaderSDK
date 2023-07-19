@@ -9,3 +9,4 @@ import Foundation
 public enum FileFormat {
         case TZX, SNA, Z80, TAP, DSK, UNKNOWN, ERRORED
     }
+

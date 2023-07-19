@@ -10,7 +10,7 @@ import Foundation
 
 
 public protocol TapeDelegate {
-    func fetchData(tState: Int) -> (signal: Bool, reset: Bool)?
+    func fetchData(tState: Int) -> (signal: Bool, reset: Bool, pause: Bool)?
     func startTape()
     func fastForward()
     func rewind()

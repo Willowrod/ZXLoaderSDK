@@ -235,6 +235,7 @@ public class Z80Format: BaseFileFormat {
                 decompress(blockData: Array(snaData[dataStart...]), memoryBank: 0)
             } else {
                 ramBanks[0].append(contentsOf: snaData[dataStart...])
+                print("Start of RAM \(ramBanks[0][0...20])")
             }
         } else {
             while currentByte < snaData.count {
