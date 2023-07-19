@@ -23,8 +23,13 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
     var pauseLength: Int = 0
     var isOnPulse = true
     var controlDelegate: TapeControlDelegate? = nil
+    
+    var loggingDelegate: TapeLoggingDelegate? = nil
+    
+    var currentBlockRepeats = 0
 
-    public init(filename: String, path: String?) {
+    public init(filename: String, path: String?, loggingDelegate: TapeLoggingDelegate?) {
+        self.loggingDelegate = loggingDelegate
         super.init()
         var tzxBytes: Data? = nil
         if let filePath = path, filePath.count > 0 {
@@ -49,7 +54,8 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         }
     }
 
-    public init(path: String) {
+    public init(path: String, loggingDelegate: TapeLoggingDelegate?) {
+        self.loggingDelegate = loggingDelegate
         super.init()
         var tzxBytes: Data? = nil
             var file = path
@@ -68,7 +74,8 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         }
     }
 
-    public init(data: Data){
+    public init(data: Data, loggingDelegate: TapeLoggingDelegate?) {
+        self.loggingDelegate = loggingDelegate
         super.init()
         if let tzxBytes = data.hexString?.splitToBytes(separator: " "){
             tzxBytes.forEach{byte in
@@ -78,13 +85,15 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         }
     }
     
-    public init(data: [UInt8]){
+    public init(data: [UInt8], loggingDelegate: TapeLoggingDelegate?) {
+        self.loggingDelegate = loggingDelegate
         super.init()
         tzxData = data
         process()
     }
     
-    public init(data: String?){
+    public init(data: String?, loggingDelegate: TapeLoggingDelegate?) {
+        self.loggingDelegate = loggingDelegate
        super.init()
         if let tzxBytes = data?.splitToBytes(separator: " "){
             tzxBytes.forEach{byte in
@@ -99,10 +108,15 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         updateBlockName()
     }
     
+    public func setTapeDelegate(del: TapeLoggingDelegate?) {
+       // print("LoggingDelegate = \(del)")
+        loggingDelegate = del
+    }
+    
     func updateBlockName(){
- //           DispatchQueue.main.sync {
-                controlDelegate?.setCurrentBlock(name: "Block: \(currentBlock)")
-//        }
+            DispatchQueue.main.async {
+                self.controlDelegate?.setCurrentBlock(name: "Block: \(self.currentBlock)")
+        }
     }
     
     func process(){
@@ -110,7 +124,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         while currentByte < tzxData.count && processing {
         readBlock(fromByte: currentByte)
         }
-        print("TZX file imported")
+        loggingDelegate?.log("TZX file imported")
         currentBlock = 0
         dataBlocks.removeAll()
         blocks.forEach {block in
@@ -154,45 +168,52 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
     
     func readBlock(fromByte: Int){
         if (fromByte < tzxData.count){
-            print("Block starts \(fromByte)")
+            loggingDelegate?.log("Block starts \(fromByte)")
             var addLength = true
             if fromByte == 0 {
                 // read header - Header should be 10 byters long and start with 'ZXTape!' followed by 0x1A
                 // Byte 0x08 if the major version of the TZX file and 0x09 is the minor version
                 if tzxData[0x00...0x07] == [0x5A, 0x58, 0x54, 0x61, 0x70, 0x65, 0x21, 0x1A] {
-                    blocks.append(TZXHeaderBlock.init(data: tzxData[0x00...0x09], order: currentBlock))
+                    blocks.append(TZXHeaderBlock.init(data: tzxData[0x00...0x09], order: currentBlock, delegate: loggingDelegate))
                 } else {
                     processing = false
-                    print("Not a valid TZX file")
+                    loggingDelegate?.log("Not a valid TZX file")
                 }
             } else {
                 let id = tzxData[fromByte]
+                loggingDelegate?.log("Current block starts: \(fromByte)")
                 switch (id){
                 
                 case 0x10:
-                    blocks.append(TZXStandardSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXStandardSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x11:
-                    blocks.append(TZXTurboSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXTurboSpeedBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x13:
-                    blocks.append(TZXPulseSequenceBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXPulseSequenceBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x14:
-                    blocks.append(TZXPureDataBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXPureDataBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x20:
-                    blocks.append(TZXPauseBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXPauseBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x21:
-                    blocks.append(TZXGroupStartBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXGroupStartBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x22:
-                    blocks.append(TZXGroupEndBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXGroupEndBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
+                case 0x24:
+                    currentBlockRepeats = Int(fetchWord(byte: fromByte))
+                    loggingDelegate?.log("Block repeats: \(currentBlockRepeats)")
+                    currentByte += 2
+                case 0x25:
+                    currentBlockRepeats = 0
                 case 0x30:
-                    blocks.append(TZXTextDescriptionBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXTextDescriptionBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x31:
-                    blocks.append(TZXTextMessageBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXTextMessageBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x32:
-                    blocks.append(TZXTextArchiveBlock.init(data: tzxData[fromByte...], order: currentBlock))
+                    blocks.append(TZXTextArchiveBlock.init(data: tzxData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 
                 default:
                     let length = fetchWord(byte: fromByte + 1)
-                    print("Cannot import block type \(id.hex()) of length \(length)")
+                    loggingDelegate?.log("Cannot import block type \(id.hex()) of length \(length)")
                     addLength = false
                     currentByte += 3
                     currentByte += Int(length)
@@ -202,7 +223,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
             currentByte += Int(blocks.last?.blockLength ?? 0) + Int(blocks.last?.blockCounter ?? 0)
             }
         } else {
-            print("End of file reached or block out of scope")
+            loggingDelegate?.log("End of file reached or block out of scope")
         }
         currentBlock += 1
     }
@@ -214,7 +235,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         if (tzxData.count > byte){
             return tzxData[byte]
         } else {
-            print("Error importing byte \(byte) from TZX root - not enough data!")
+            loggingDelegate?.log("Error importing byte \(byte) from TZX root - not enough data!")
             processing = false
         }
         return 0x00
@@ -224,7 +245,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
         if (tzxData.count > byte &+ 1){
             return UInt16(tzxData[byte]) &+ (UInt16(tzxData[(byte + 1)]) * 256) // Little Endian
         } else {
-            print("Error importing Word \(byte) from TZX root - not enough data!")
+            loggingDelegate?.log("Error importing Word \(byte) from TZX root - not enough data!")
             processing = false
         }
         return 0x00
@@ -284,7 +305,7 @@ public class TZXFormat: BaseFileFormat , TapeDelegate {
                 pauseLength = thisBlockData.pause
             }
             } else {
-                print ("End of TZX file")
+                loggingDelegate?.log ("End of TZX file")
                 return nil
             }
         }
@@ -373,7 +394,11 @@ class BaseTZXBlock {
     var pilotToneHeader: UInt16 = 8063
     var pauseLength: UInt16 = 1000
     
-    init(data: ArraySlice<UInt8>, order: Int){
+    
+    var loggingDelegate: TapeLoggingDelegate? = nil
+    
+    init(data: ArraySlice<UInt8>, order: Int, delegate: TapeLoggingDelegate?){
+        self.loggingDelegate = delegate
         self.order = order
         rawData = Array(data)
         process()
@@ -444,7 +469,7 @@ class BaseTZXBlock {
             blockCounter += 1
             return rawData[byte]
         } else {
-            print("Error importing byte \(byte) for block type \(blockType) - not enough data!")
+            loggingDelegate?.log("Error importing byte \(byte) for block type \(blockType) - not enough data!")
         }
         blockCounter += 1
         return 0x00
@@ -455,7 +480,7 @@ class BaseTZXBlock {
             blockCounter += 2
             return UInt16(rawData[byte]) &+ (UInt16(rawData[(byte + 1)]) * 256) // Little Endian
         } else {
-            print("Error importing Word \(byte) for block type \(blockType) - not enough data!")
+            loggingDelegate?.log("Error importing Word \(byte) for block type \(blockType) - not enough data!")
         }
         blockCounter += 2
         return 0x00
@@ -473,7 +498,7 @@ class TZXHeaderBlock: BaseTZXBlock {
     minorVersion = fetchByte(byte: 9)
         blockCounter = 0
         
-        print ("TZX Version \(majorVersion).\(minorVersion) being imported")
+        loggingDelegate?.log ("TZX Version \(majorVersion).\(minorVersion) being imported")
     }
 }
 
@@ -588,7 +613,7 @@ class TZXMessageStyleBlock: BaseTZXBlock{
     
     func displayMessages() {
         text.forEach{message in
-            print("... \(message.description): \(message.text)")
+            loggingDelegate?.log("... \(message.description): \(message.text)")
         }
     }
 }
@@ -673,10 +698,10 @@ class TZXStandardSpeedBlock: TZXTAPStyleBlock {
             dataBlockLength = fetchWord(byte: blockCounter)
             parameter1 = fetchWord(byte: blockCounter)
             parameter2 = fetchWord(byte: blockCounter)
-            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
+            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
         } else {
             isHeader = false
-            print ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
+            loggingDelegate?.log ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
@@ -685,7 +710,7 @@ class TZXStandardSpeedBlock: TZXTAPStyleBlock {
 
 class TZXTurboSpeedBlock: TZXTAPStyleBlock {
     override func process() {
-        print("Parsing Turbo Speed Block")
+        loggingDelegate?.log("Parsing Turbo Speed Block")
         blockType = 0x11
         blockCounter += 1
         pilotPulse = fetchWord(byte: blockCounter)
@@ -699,7 +724,7 @@ class TZXTurboSpeedBlock: TZXTAPStyleBlock {
         pauseLength = fetchWord(byte: blockCounter)
         blockLength = fetchWord(byte: blockCounter)
         blockCounter += 1
-        print("Data left: \(rawData.count) - Length of block: \(blockLength)")
+        loggingDelegate?.log("Data left: \(rawData.count) - Length of block: \(blockLength)")
    
         if blockCounter + Int(blockLength) < rawData.count {
         blockData = Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
@@ -719,10 +744,10 @@ class TZXTurboSpeedBlock: TZXTAPStyleBlock {
             parameter1 = fetchWord(byte: blockCounter)
             parameter2 = fetchWord(byte: blockCounter)
             
-            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
+            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
         } else {
             isHeader = false
-            print ("Standard Speed block imported of length \(blockLength)")
+            loggingDelegate?.log ("Standard Speed block imported of length \(blockLength)")
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
@@ -753,10 +778,10 @@ class TZXPulseSequenceBlock: TZXTAPStyleBlock {
             dataBlockLength = fetchWord(byte: blockCounter)
             parameter1 = fetchWord(byte: blockCounter)
             parameter2 = fetchWord(byte: blockCounter)
-            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
+            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
         } else {
             isHeader = false
-            print ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
+            loggingDelegate?.log ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
@@ -765,7 +790,7 @@ class TZXPulseSequenceBlock: TZXTAPStyleBlock {
 
 class TZXPureDataBlock: TZXTAPStyleBlock {
     override func process() {
-        print("Parsing Pure Data Block")
+        loggingDelegate?.log("Parsing Pure Data Block")
         blockType = 0x14
         blockCounter += 1
         pilotPulse = 0
@@ -780,7 +805,7 @@ class TZXPureDataBlock: TZXTAPStyleBlock {
         blockLength = fetchWord(byte: blockCounter)
         blockCounter += 1
         playState = .play
-        print("Data left: \(rawData.count) - Length of block: \(blockLength)")
+        loggingDelegate?.log("Data left: \(rawData.count) - Length of block: \(blockLength)")
    
         if blockCounter + Int(blockLength) < rawData.count {
         blockData = Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
@@ -800,10 +825,10 @@ class TZXPureDataBlock: TZXTAPStyleBlock {
             parameter1 = fetchWord(byte: blockCounter)
             parameter2 = fetchWord(byte: blockCounter)
             
-            print("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
+            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
         } else {
             isHeader = false
-            print ("Pure data block imported of length \(blockLength)")
+            loggingDelegate?.log ("Pure data block imported of length \(blockLength)")
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
@@ -854,6 +879,6 @@ class TZXPauseBlock: BaseTZXBlock {
         blockData = []
 
         
-        print ("Pause block imported of length \(blockLength)")
+        loggingDelegate?.log ("Pause block imported of length \(blockLength)")
     }
 }

@@ -36,8 +36,6 @@ public init(filename: String, path: String?) {
     } else if let filePath = Bundle.main.path(forResource: filename.replacingOccurrences(of: ".tap", with: ""), ofType: "tap"){
         let contents = NSData(contentsOfFile: filePath)
         tapBytes = contents! as Data
-    } else {
-        print("file not found")
     }
     if let tapStream = tapBytes?.hexString?.splitToBytes(separator: " "){
         tapStream.forEach{byte in
@@ -108,7 +106,6 @@ func process(){
     while currentByte < tapData.count && processing {
     readBlock(fromByte: currentByte)
     }
-    print("TAP file imported")
     currentBlock = 0
     dataBlocks.removeAll()
     blocks.forEach {block in
@@ -152,56 +149,13 @@ func backOneTrack(){
 
 func readBlock(fromByte: Int){
     if (fromByte < tapData.count){
-        print("Block starts \(fromByte)")
-        var addLength = true
-//        if fromByte == 0 {
-//            // read header - Header should be 10 byters long and start with 'ZXTape!' followed by 0x1A
-//            // Byte 0x08 if the major version of the TAP file and 0x09 is the minor version
-//            if tapData[0x00...0x07] == [0x5A, 0x58, 0x54, 0x61, 0x70, 0x65, 0x21, 0x1A] {
-//                blocks.append(TAPHeaderBlock.init(data: tapData[0x00...0x09], order: currentBlock))
-//            } else {
-//                processing = false
-//                print("Not a valid TAP file")
-//            }
-//        } else {
-//            let id = tapData[fromByte]
-//            switch (id){
-//
-//            case 0x10:
                 blocks.append(TAPStandardSpeedBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x11:
-//                blocks.append(TAPTurboSpeedBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x20:
-//                blocks.append(TAPPauseBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x21:
-//                blocks.append(TAPGroupStartBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x22:
-//                blocks.append(TAPGroupEndBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x30:
-//                blocks.append(TAPTextDescriptionBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x31:
-//                blocks.append(TAPTextMessageBlock.init(data: tapData[fromByte...], order: currentBlock))
-//            case 0x32:
-//                blocks.append(TAPTextArchiveBlock.init(data: tapData[fromByte...], order: currentBlock))
-//
-//            default:
-//                let length = fetchWord(byte: fromByte + 1)
-//                print("Cannot import block type \(id.hex()) of length \(length)")
-//                addLength = false
-//                currentByte += 3
-//                currentByte += Int(length)
-//            }
-//        }
-        if addLength {
         currentByte += Int(blocks.last?.blockLength ?? 0) + Int(blocks.last?.blockCounter ?? 0)
-        }
     } else {
         print("End of file reached or block out of scope")
     }
     currentBlock += 1
 }
-
-
 
 
 func fetchByte(byte: Int) -> UInt8 {
