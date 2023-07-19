@@ -9,8 +9,7 @@ import Foundation
 
 public class TZXFormat: BaseTapeFileFormat  {
     
-    
-
+  
     public init(filename: String, path: String?, loggingDelegate: TapeLoggingDelegate?) {
         super.init()
         self.loggingDelegate = loggingDelegate
