@@ -13,5 +13,5 @@ public protocol TapeLoggingDelegate {
     func logWarning(_ message: String)
     func logNetwork(_ message: String)
     func log(_ message: String)
-    func clearLogcat()
+    //func clearLogcat()
 }
