@@ -12,6 +12,7 @@ class BaseTapeBlock {
     var blockLength: UInt16 = 0
     var order: Int = 0
     var blockData: [UInt8] = []
+    var pulseData: [UInt16] = []
     var blockCounter = 0
     var rawData: [UInt8] = []
     var pause: UInt16 = 0
@@ -24,7 +25,8 @@ class BaseTapeBlock {
    // var pulseLength = 855
    // var currentPulseLength = 2168
     var playState: PlayState = .pilot
-    var pilotCount = 0
+    var pilotCount: UInt16 = 0
+    var pulseCount: UInt16 = 0
     var workingByte: UInt8 = 0x00
     var currentlySet = false
     var usedBitsInLastByte: UInt8 = 8
@@ -37,6 +39,7 @@ class BaseTapeBlock {
     var pilotTone: UInt16 = 3223
     var pilotToneHeader: UInt16 = 8063
     var pauseLength: UInt16 = 1000
+    var pulseLength: UInt16 = 1000
     
     
     var loggingDelegate: TapeLoggingDelegate? = nil
@@ -80,8 +83,37 @@ class BaseTapeBlock {
             }
             workingByte = blockData[0]
             playState = .play
+            pulseCount = 0
+            currentByte = 0
             return (Int(syncPulse1), Int(syncPulse2), -1)
         case .play:
+            if blockType == 0x12 {
+                    if pulseCount >= pulseLength {
+                        currentByte += 1
+                        if currentByte < blockData.count {
+                        workingByte = blockData[currentByte]
+                        } else {
+                            playState = .pause
+                        }
+                        pulseCount = 0
+                    }
+                pulseCount += 2
+                print("Pulse \(currentByte) of \(blockData.count)")
+                return (Int(pilotPulse), Int(pilotPulse), -1)
+            }
+            
+                if blockType == 0x13 {
+                    if pulseCount >= pulseData[currentByte] {
+                            currentByte += 1
+                            if currentByte >= pulseData.count {
+                                playState = .pause
+                            }
+                            pulseCount = 0
+                        }
+                    pulseCount += 2
+                    print("Pulse Sequence \(currentByte) of \(pulseData.count)")
+                    return (Int(pilotPulse), Int(pilotPulse), -1)
+                }
             currentlySet = workingByte.isSet(bit: currentBit)
             currentBit -= 1
             if currentBit < 0 {
@@ -399,38 +431,38 @@ class TZXTurboSpeedBlock: TAPStyleBlock {
     }
 }
 
-class TZXPulseSequenceBlock: TAPStyleBlock {
-    override func process() {
-        blockType = 0x13
-        blockCounter += 1
-        var length = fetchByte(byte: blockCounter)
-        blockLength = UInt16(length * 2)
-      //  if blockCounter + Int(blockLength) < rawData.count {
-        blockData = []//Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
+//class TZXPulseSequenceBlock: TAPStyleBlock {
+//    override func process() {
+//        blockType = 0x13
+//        blockCounter += 1
+//        var length = fetchByte(byte: blockCounter)
+//        blockLength = UInt16(length * 2)
+//      //  if blockCounter + Int(blockLength) < rawData.count {
+//        blockData = []//Array(rawData[blockCounter...blockCounter + Int(blockLength - 1)])
+////        } else {
+////            blockData = Array(rawData[blockCounter...])
+////        }
+//        let tempByteCount = blockCounter
+//        
+//        if fetchByte(byte: blockCounter) == 0x00{
+//            isHeader = true
+//            type = fetchByte(byte: blockCounter)
+//            for char in blockData[1...10]{
+//                fileName += String(UnicodeScalar(UInt8(char)))
+//            }
+//            blockCounter += 10
+//            dataBlockLength = fetchWord(byte: blockCounter)
+//            parameter1 = fetchWord(byte: blockCounter)
+//            parameter2 = fetchWord(byte: blockCounter)
+//            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
 //        } else {
-//            blockData = Array(rawData[blockCounter...])
+//            isHeader = false
+//            loggingDelegate?.log ("Pulse sequence block imported of length \(blockLength) - Pause: \(pauseLength)")
 //        }
-        let tempByteCount = blockCounter
-        
-        if fetchByte(byte: blockCounter) == 0x00{
-            isHeader = true
-            type = fetchByte(byte: blockCounter)
-            for char in blockData[1...10]{
-                fileName += String(UnicodeScalar(UInt8(char)))
-            }
-            blockCounter += 10
-            dataBlockLength = fetchWord(byte: blockCounter)
-            parameter1 = fetchWord(byte: blockCounter)
-            parameter2 = fetchWord(byte: blockCounter)
-            loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - Pause: \(pauseLength)")
-        } else {
-            isHeader = false
-            loggingDelegate?.log ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
-        }
- //       printBlockData(data: blockData)
-        blockCounter = tempByteCount
-    }
-}
+// //       printBlockData(data: blockData)
+//        blockCounter = tempByteCount
+//    }
+//}
 
 class TZXPureDataBlock: TAPStyleBlock {
     override func process() {
@@ -493,6 +525,32 @@ class TZXGroupStartBlock: TZXMessageStyleBlock {
             text.append(TZXMessage.init(type: "Found unnamed Group Block", block: []))
         }
         displayMessages()
+    }
+}
+
+class TZXPureToneBlock: TAPStyleBlock {
+    override func process() {
+        blockType = 0x12
+        blockCounter += 1
+        pulseLength = fetchWord(byte: blockCounter)
+        pulseCount = fetchWord(byte: blockCounter)
+        blockData = Array(repeating: 0x00, count: Int(pulseCount))
+        print("PureTone length: \(pulseLength)")
+        print("Pulse count: \(pulseCount)")
+    }
+}
+
+class TZXPulseSequenceBlock: TAPStyleBlock {
+    override func process() {
+        blockType = 0x13
+        blockCounter += 1
+        let count = fetchByte(byte: blockCounter)
+        for a in 0..<count {
+            pulseData.append(fetchWord(byte: blockCounter))
+        }
+        blockData = [0x00]
+        print("PulseSequence length: \(pulseLength)")
+        print("PulseSequence: \(pulseData)")
     }
 }
 

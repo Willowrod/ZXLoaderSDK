@@ -35,7 +35,7 @@ public class Z80Format: BaseFileFormat {
     public init(fileName: String, path: String? = nil){
         super.init()
         if let path = path {
-            let filePath = "\(path)/\(fileName).z80"
+            let filePath = "\(path)/\(fileName)" //.z80
             let contents = NSData(contentsOfFile: filePath)
             let data = contents! as Data
             let dataString = data.hexString
@@ -48,7 +48,7 @@ public class Z80Format: BaseFileFormat {
                 print("Error: \(error.domain)")
             }
             process()
-        } else if let filePath = Bundle.main.path(forResource: fileName, ofType: "z80"){
+        } else if let filePath = Bundle.main.path(forResource: fileName.replacing(".z80", with: ""), ofType: "z80"){
             print("File found - \(filePath)")
             let contents = NSData(contentsOfFile: filePath)
             let data = contents! as Data

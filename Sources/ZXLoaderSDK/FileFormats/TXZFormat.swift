@@ -122,6 +122,8 @@ public class TZXFormat: BaseTapeFileFormat  {
                     blocks.append(StandardSpeedBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x11:
                     blocks.append(TZXTurboSpeedBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
+                case 0x12:
+                    blocks.append(TZXPureToneBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x13:
                     blocks.append(TZXPulseSequenceBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x14:
