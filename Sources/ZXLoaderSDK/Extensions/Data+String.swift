@@ -6,7 +6,7 @@
 //
 
 import Foundation
-extension Data {
+public extension Data {
     
     var hexString: String? {
         return withUnsafeBytes { bufferPtr in

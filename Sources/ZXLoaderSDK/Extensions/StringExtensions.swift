@@ -6,7 +6,7 @@
 //
 
 import Foundation
-extension String {
+public extension String {
     func inserting(separator: String, every n: Int) -> String {
         var result: String = ""
         let characters = Array(self)
