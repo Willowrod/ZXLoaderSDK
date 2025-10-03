@@ -32,7 +32,7 @@ public class SNAFormat: BaseFileFormat {
     
     public init(fileName: String){
         super.init()
-        if let filePath = Bundle.main.path(forResource: fileName, ofType: "sna"){
+        if let filePath = Bundle.main.path(forResource: fileName.replacingOccurrences(of: ".sna", with: ""), ofType: "sna"){
             let contents = NSData(contentsOfFile: filePath)
             let data = contents! as Data
             let dataString = data.hexString
