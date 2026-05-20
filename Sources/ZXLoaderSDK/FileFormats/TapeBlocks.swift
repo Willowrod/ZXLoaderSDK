@@ -235,14 +235,19 @@ class TZXMessage {
     
     init(type: UInt8, block: ArraySlice<UInt8>){
         self.type = type
-        
-parseText(block: block)
+        parseText(block: block)
     }
     
     init(type: String, block: ArraySlice<UInt8>){
         self.type = 0xFE
         description = type
         parseText(block: block)
+    }
+    
+    init(message: String, length: Int) {
+        self.type = 0x00
+        self.text = message
+        self.length = length
     }
     
     func parseText(block: ArraySlice<UInt8>){
@@ -340,6 +345,22 @@ class TZXTextArchiveBlock: TZXMessageStyleBlock {
     }
 }
 
+
+class TZXTextHardwareBlock: TZXMessageStyleBlock {
+    override func process() {
+        super.process()
+        blockType = 0x33
+        blockCounter += 1
+        let length = fetchByte(byte: blockCounter)
+        for i in 0..<Int(length){
+            
+            text.append(TZXMessage.init(message: "Hardware: \(fetchByte(byte: blockCounter)) - \(fetchByte(byte: blockCounter)) - \(fetchByte(byte: blockCounter))", length: 3))
+        }
+        
+        //blockCounter += Int(length)
+        displayMessages()
+    }
+}
 
 //class TZXPauseBlock: TZXTAPStyleBlock {
 //    override func process() {

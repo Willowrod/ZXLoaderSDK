@@ -146,6 +146,8 @@ public class TZXFormat: BaseTapeFileFormat  {
                     blocks.append(TZXTextMessageBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 case 0x32:
                     blocks.append(TZXTextArchiveBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
+                case 0x33:
+                    blocks.append(TZXTextHardwareBlock.init(data: tapeData[fromByte...], order: currentBlock, delegate: loggingDelegate))
                 
                 default:
                     let length = fetchWord(byte: fromByte + 1)
