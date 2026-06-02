@@ -7,16 +7,17 @@
 
 import Foundation
 
-class BaseTapeBlock {
+public class BaseTapeBlock {
+    public var type: UInt8 = 0xFF
     var blockType: UInt8 = 0
     var blockLength: UInt16 = 0
     var order: Int = 0
-    var blockData: [UInt8] = []
+    public var blockData: [UInt8] = []
     var pulseData: [UInt16] = []
     var blockCounter = 0
     var rawData: [UInt8] = []
     var pause: UInt16 = 0
-    var isHeader = false
+    public var isHeader = false
     var isCodeBlock = true
     var currentByte: Int = 0
     var currentBit = 7
@@ -41,6 +42,8 @@ class BaseTapeBlock {
     var pauseLength: UInt16 = 1000
     var pulseLength: UInt16 = 1000
     
+    public var parameter1: UInt16 = 0x00
+    public var parameter2: UInt16 = 0x00
     
     var loggingDelegate: TapeLoggingDelegate? = nil
     
@@ -179,11 +182,8 @@ class TZXHeaderBlock: BaseTapeBlock {
 }
 
 class TAPStyleBlock: BaseTapeBlock {
-    var type: UInt8 = 0x00
     var fileName = ""
     var dataBlockLength: UInt16 = 0x00
-    var parameter1: UInt16 = 0x00
-    var parameter2: UInt16 = 0x00
     var checkSum: UInt8 = 0x00
     
     func headerType() -> String{
@@ -399,8 +399,9 @@ class StandardSpeedBlock: TAPStyleBlock {
         } else {
             isHeader = false
             loggingDelegate?.log ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
+            
+            blockData = blockData[1..<blockData.count].map{$0}
         }
- //       printBlockData(data: blockData)
         blockCounter = tempByteCount
     }
 }

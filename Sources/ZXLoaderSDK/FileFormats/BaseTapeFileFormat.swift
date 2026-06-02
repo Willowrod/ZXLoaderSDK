@@ -11,7 +11,7 @@ open class BaseTapeFileFormat: BaseFileFormat, TapeDelegate {
     
     var tapeData: [UInt8] = []
     var blocks: [BaseTapeBlock] = []
-    var dataBlocks: [BaseTapeBlock] = []
+    public var dataBlocks: [BaseTapeBlock] = []
     var currentByte: Int = 0
     var currentBlock = 0
     var currentBit = 7
