@@ -13,6 +13,7 @@ public class BaseTapeBlock {
     var blockLength: UInt16 = 0
     var order: Int = 0
     public var blockData: [UInt8] = []
+    public var actualData: [UInt8] = []
     var pulseData: [UInt16] = []
     var blockCounter = 0
     var rawData: [UInt8] = []
@@ -383,6 +384,7 @@ class StandardSpeedBlock: TAPStyleBlock {
         } else {
             blockData = Array(rawData[blockCounter...])
         }
+        actualData = blockData
         let tempByteCount = blockCounter
         
         if fetchByte(byte: blockCounter) == 0x00{
@@ -400,7 +402,7 @@ class StandardSpeedBlock: TAPStyleBlock {
             isHeader = false
             loggingDelegate?.log ("Standard Speed block imported of length \(blockLength) - Pause: \(pauseLength)")
             
-            blockData = blockData[1..<blockData.count].map{$0}
+            actualData = blockData[1..<blockData.count].map{$0}
         }
         blockCounter = tempByteCount
     }
