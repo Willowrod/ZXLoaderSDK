@@ -431,6 +431,7 @@ class TZXTurboSpeedBlock: TAPStyleBlock {
         } else {
             blockData = Array(rawData[blockCounter...])
         }
+        actualData = blockData
         let tempByteCount = blockCounter
         
         if fetchByte(byte: blockCounter) == 0x00{
@@ -447,7 +448,9 @@ class TZXTurboSpeedBlock: TAPStyleBlock {
             loggingDelegate?.log("Header imported - Type: \(headerType()) - Name: \(fileName) - Block Length: \(dataBlockLength) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength) - ")
         } else {
             isHeader = false
-            loggingDelegate?.log ("Standard Speed block imported of length \(blockLength)")
+            loggingDelegate?.log ("Turbo Speed Block imported of length \(blockLength)")
+            
+            actualData = blockData[1..<blockData.count].map{$0}
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
@@ -512,6 +515,7 @@ class TZXPureDataBlock: TAPStyleBlock {
         } else {
             blockData = Array(rawData[blockCounter...])
         }
+        actualData = blockData
         let tempByteCount = blockCounter
         
         if fetchByte(byte: blockCounter) == 0x00{
@@ -529,6 +533,7 @@ class TZXPureDataBlock: TAPStyleBlock {
         } else {
             isHeader = false
             loggingDelegate?.log ("Pure data block imported of length \(blockLength)")
+            actualData = blockData[1..<blockData.count].map{$0}
         }
  //       printBlockData(data: blockData)
         blockCounter = tempByteCount
