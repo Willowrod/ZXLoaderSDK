@@ -10,7 +10,7 @@ import Foundation
 open class BaseTapeFileFormat: BaseFileFormat, TapeDelegate {
     
     var tapeData: [UInt8] = []
-    var blocks: [BaseTapeBlock] = []
+    public var blocks: [BaseTapeBlock] = []
     public var dataBlocks: [BaseTapeBlock] = []
     var currentByte: Int = 0
     var currentBlock = 0

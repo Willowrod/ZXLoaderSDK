@@ -46,6 +46,12 @@ public class BaseTapeBlock {
     public var parameter1: UInt16 = 0x00
     public var parameter2: UInt16 = 0x00
     
+    /// A human-readable summary of this tape section, used when logging
+    /// the contents of an imported/injected TZX file.
+    public var sectionSummary: String {
+        "Block \(order): type \(blockType.hex()) length \(blockLength)"
+    }
+    
     var loggingDelegate: TapeLoggingDelegate? = nil
     
     init(data: ArraySlice<UInt8>, order: Int, delegate: TapeLoggingDelegate?){
@@ -226,6 +232,13 @@ class TAPStyleBlock: BaseTapeBlock {
         }
     }
     
+    public override var sectionSummary: String {
+        if isHeader {
+            return "Header - \(headerType()) - \(fileName) - \(parameter1Details()) - \(parameter2Details()) - Length: \(blockLength)"
+        }
+        return "Data block - length \(blockLength) - Pause: \(pauseLength)"
+    }
+    
 }
 
 class TZXMessage {
@@ -291,6 +304,11 @@ class TZXMessageStyleBlock: BaseTapeBlock{
     
     override func process() {
         isCodeBlock = false
+    }
+    
+    public override var sectionSummary: String {
+        let summary = text.map { "\($0.description): \($0.text)" }.joined(separator: "; ")
+        return summary.isEmpty ? "Message block" : summary
     }
     
     func displayMessages() {

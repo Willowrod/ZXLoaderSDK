@@ -127,8 +127,9 @@ public class Z80Format: BaseFileFormat {
         registers.registerSP = registers.registerPair(l: snaData[8], h: snaData[9])
         registers.registerI = snaData[10]
         registers.registerR = snaData[11]
-        registers.registerR = registers.registerR.clear(bit: 7)
         let flagByte = snaData[12]
+        // Bit 0 of byte 12 holds bit 7 of the R register.
+        registers.registerR = flagByte.isSet(bit: 0) ? registers.registerR.set(bit: 7) : registers.registerR.clear(bit: 7)
         hasCompressedData = flagByte.isSet(bit: 5)
         registers.borderColour = (flagByte & 14) >> 1
         registers.primary.registerE = snaData[13]
@@ -155,7 +156,7 @@ public class Z80Format: BaseFileFormat {
         // End of V1 header - Check for V2 header:
         
         if (registers.registerPC == 0x00){
-            registers.shouldReturn = true
+            registers.shouldReturn = false
             // Signifies V 2 or 3
             /*
              * 30      2       Length of additional header block (see below)
@@ -203,7 +204,7 @@ public class Z80Format: BaseFileFormat {
                 switch hardwareMode{
                 case 0,1,2:
                     memory = .ZX48
-                case 4,5,6:
+                case 3,4,5,6:
                     memory = .ZX128
                 default:
                     memory = .UNSUPPORTED

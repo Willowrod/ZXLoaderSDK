@@ -21,18 +21,22 @@ public class TZXFormat: BaseTapeFileFormat  {
             }
             if let contents = NSData(contentsOfFile: file) {
                 tzxBytes = contents as Data
+            } else {
+                loggingDelegate?.logError("TZX import failed - file not found: \(file)")
             }
         } else if let filePath = Bundle.main.path(forResource: filename.replacingOccurrences(of: ".tzx", with: ""), ofType: "tzx"){
             let contents = NSData(contentsOfFile: filePath)
             tzxBytes = contents! as Data
         } else {
-            print("file not found")
+            loggingDelegate?.logError("TZX import failed - resource not found: \(filename)")
         }
         if let tzxStream = tzxBytes?.hexString?.splitToBytes(separator: " "){
             tzxStream.forEach{byte in
                 tapeData.append(UInt8(byte, radix: 16) ?? 0x00)
             }
         process()
+        } else {
+            loggingDelegate?.logError("TZX import failed - unable to read file data")
         }
     }
 
@@ -46,6 +50,8 @@ public class TZXFormat: BaseTapeFileFormat  {
             }
             if let contents = NSData(contentsOfFile: file) {
                 tzxBytes = contents as Data
+            } else {
+                loggingDelegate?.logError("TZX import failed - file not found: \(file)")
             }
 
         if let tzxStream = tzxBytes?.hexString?.splitToBytes(separator: " "){
@@ -53,6 +59,8 @@ public class TZXFormat: BaseTapeFileFormat  {
                 tapeData.append(UInt8(byte, radix: 16) ?? 0x00)
             }
         process()
+        } else {
+            loggingDelegate?.logError("TZX import failed - unable to read file data")
         }
     }
 
@@ -64,6 +72,8 @@ public class TZXFormat: BaseTapeFileFormat  {
                 tapeData.append(UInt8(byte, radix: 16) ?? 0x00)
             }
         process()
+        } else {
+            loggingDelegate?.logError("TZX import failed - unable to parse data")
         }
     }
     
@@ -111,7 +121,7 @@ public class TZXFormat: BaseTapeFileFormat  {
                     blocks.append(TZXHeaderBlock.init(data: tapeData[0x00...0x09], order: currentBlock, delegate: loggingDelegate))
                 } else {
                     processing = false
-                    loggingDelegate?.log("Not a valid TZX file")
+                    loggingDelegate?.logError("TZX import failed - not a valid TZX file (bad header)")
                 }
             } else {
                 let id = tapeData[fromByte]
