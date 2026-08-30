@@ -4,7 +4,7 @@
 //
 //  Created by Mike Hall on 17/01/2021.
 //
-public enum ZXZ80HardwareMode {
+public enum ZXZ80HardwareMode: Equatable {
     case ZX48, ZX128, ZX128P2, ZX128P2A, ZX128P3, SAMRAM, UNSUPPORTED, UNKNOWN
 }
 
@@ -239,19 +239,24 @@ public class Z80Format: BaseFileFormat {
                 print("Start of RAM \(ramBanks[0][0...20])")
             }
         } else {
-            while currentByte < snaData.count {
+            var blockCount = 0
+            while currentByte + 2 < snaData.count && (memory != .ZX128 || blockCount < 8) {
                 let blockLength = Int(registers.registerPair(l: snaData[currentByte], h: snaData[currentByte + 1]))
                 currentByte += 2
                 let memoryBank = Int(snaData[currentByte])
                 currentByte += 1
+                guard memoryBank >= 0, memoryBank < ramBanks.count else { break }
                 print("Writing bank \(memoryBank) data")
                 if blockLength == 0xffff {
+                    guard currentByte + MAX_BLOCK_LENGTH <= snaData.count else { break }
                     ramBanks[memoryBank].append(contentsOf: snaData[currentByte..<currentByte+MAX_BLOCK_LENGTH])
                     currentByte += MAX_BLOCK_LENGTH
                 } else {
+                    guard currentByte + blockLength <= snaData.count else { break }
                     decompress(blockData: Array(snaData[currentByte..<currentByte+blockLength]), memoryBank: memoryBank)
                     currentByte += blockLength
                 }
+                blockCount += 1
             }
         }
     }
